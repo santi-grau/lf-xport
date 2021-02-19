@@ -1,44 +1,72 @@
+import re
+import addon_utils
 import bpy
-import os
 import time
+import os
+import argparse
+import sys
+
+scene = bpy.context.scene
+
+class ArgumentParserForBlender(argparse.ArgumentParser):
+    def _get_argv_after_doubledash(self):
+        try: return sys.argv[sys.argv.index("--")+1:]
+        except ValueError as e: return []
+    def parse_args(self): return super().parse_args(args=self._get_argv_after_doubledash())
+
+parser = ArgumentParserForBlender()
+
+parser.add_argument("-q", "--quality", type=int, default=2, help="Quality render 32 * 2^q")
+parser.add_argument("-s", "--start", type=int, default=bpy.context.scene.frame_start, help="Frame start")
+parser.add_argument("-e", "--end", type=int, default= bpy.context.scene.frame_end,help="Frame end")
+parser.add_argument("-m", "--maps", nargs='+', help="Map define, array or all")
+
+args = parser.parse_args()
+quality = 32 * pow( 2, int( args.quality ) )
+maps = args.maps
+
+print( 'Render quality => ' + str( quality ) )
+
+scene.cycles.device = 'GPU'
+prefs = bpy.context.preferences
+prefs.addons['cycles'].preferences.get_devices()
+cprefs = prefs.addons['cycles'].preferences
+print(bpy.data.objects.keys())
+
+# Attempt to set GPU device types if available
+for compute_device_type in ('CUDA', 'OPENCL', 'NONE'):
+    try:
+        cprefs.compute_device_type = compute_device_type
+        print('Device found',compute_device_type)
+        break
+    except TypeError:
+        pass
+#Enable all CPU and GPU devices
+for device in cprefs.devices:
+    if not re.match('intel', device.name, re.I):
+        print('Activating',device)
+        device.use = True
+    else:
+        device.use = False
+
+
 #########################################
 # Set vars
 #########################################
 
-scene = bpy.context.scene
-# start = bpy.context.scene.frame_start
-# end = bpy.context.scene.frame_end
-start = 0
-end = 3
+
+start = args.start
+end = args.end
 scene.frame_set( start )
 output_dir = bpy.path.abspath("//") + 'exports' +'_' + str( round( time.time() ) ) + '/'
 print( 'Exporting to ' + output_dir )
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
-bakeFloorShadow = True
-bakeFloorEmission = True
-bakeGeoShadow = True
-bakeGeoNormal = True
-bakeGeoDiffuse = True
-bakeGeoRoughness = True
-
-#########################################
-# Renderer
-#########################################
-bpy.context.scene.render.engine = 'CYCLES'
-bpy.context.scene.cycles.device = 'GPU'
-bpy.context.scene.cycles.use_denoising = True
-bpy.context.scene.cycles.samples = 32
-bpy.context.scene.render.tile_x = 256
-bpy.context.scene.render.tile_y = 256
-bpy.context.scene.render.bake.margin = 4
-
 #########################################
 # Init
 #########################################
-bpy.ops.object.mode_set(mode = 'OBJECT')
-bpy.ops.object.select_all(action='DESELECT')
+
 meshArray = []
 for obj in bpy.context.scene.objects:
     if obj.type == 'MESH': 
@@ -47,8 +75,17 @@ for obj in bpy.context.scene.objects:
             bpy.context.view_layer.objects.active = obj
             bpy.context.object.hide_render = True
 
-
-# scene.frame_set( 35 )
+#########################################
+# Renderer
+#########################################
+bpy.context.scene.render.engine = 'CYCLES'
+bpy.context.scene.cycles.device = 'GPU'
+bpy.context.scene.cycles.use_denoising = True
+bpy.context.scene.view_layers['View Layer'].cycles.use_denoising = True
+bpy.context.scene.cycles.samples = quality
+bpy.context.scene.render.tile_x = 256
+bpy.context.scene.render.tile_y = 256
+bpy.context.scene.render.bake.margin = 4
 
 def appendImageToMaterial( obj, image ):
     bpy.ops.object.select_all(action='DESELECT')
@@ -101,7 +138,7 @@ def setRenderer( mode ):
 #########################################
 
 def bake_map( mapId ):
-    
+    bpy.ops.object.select_all(action='DESELECT')
     setRenderer( mapId )
     for collection in bpy.data.collections:
         if 'Letter_group' in collection.name:
@@ -122,7 +159,6 @@ def bake_map( mapId ):
                     obj.select_set( True )
                     bpy.context.view_layer.objects.active = obj
 
-        scene.frame_set( 10 )
         bpy.ops.object.bake(type=bpy.context.scene.cycles.bake_type)
         image.filepath_raw = output_dir + collection.name + '_' + mapId + '.png'
         image.file_format = 'PNG'
@@ -153,8 +189,6 @@ def bake_plane():
         image.file_format = 'PNG'
         print( '------------------------------> Frame %s was saved to %s' % (str( frame ), image.filepath_raw ) )
         image.save()
-
-
 
 #########################################
 # Plane bake emissive
@@ -259,7 +293,7 @@ def bake_geos():
                 node.location = (100,100)
                 node.select = True
                 nodes.active = node
-            for frame in range(1,end):
+            for frame in range(1,end): # <-------- WHYYYY
                 scene.frame_set( frame )
                 for obj in collection.all_objects:
                     bpy.context.view_layer.update()
@@ -273,19 +307,15 @@ def bake_geos():
             for mat in bpy.data.materials:
                 if "Cap" in mat.name:
                     mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = ( 0.016, 0.016, 0.016, 1)
-        
-        
 
 
+if "roughness" in maps or "all" in maps: bake_map('roughness')
+if "normal" in maps or "all" in maps: bake_map('normal')
+if "diffuse" in maps or "all" in maps: bake_map('diffuse')
+if "plane" in maps or "all" in maps: bake_plane()
+if "geos" in maps or "all" in maps: bake_geos()
+if "emissive" in maps or "all" in maps: bake_emissive()
 
-
-bake_map('roughness')
-bake_map('normal')
-bake_map('diffuse')
-bake_plane()
-bake_geos()
-bake_emissive()
-
-bpy.ops.wm.save_as_mainfile(filepath=output_dir+'demo.blend')
+# bpy.ops.wm.save_as_mainfile(filepath=output_dir+'demo.blend')
 
 bpy.ops.wm.quit_blender()
