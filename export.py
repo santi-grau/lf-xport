@@ -16,14 +16,12 @@ class ArgumentParserForBlender(argparse.ArgumentParser):
 
 parser = ArgumentParserForBlender()
 
-parser.add_argument("-q", "--quality", type=int, default=2, help="Quality render 32 * 2^q")
+parser.add_argument("-q", "--quality", type=int, default=3, help="Quality render 32 * 2^q")
 parser.add_argument("-s", "--start", type=int, default=bpy.context.scene.frame_start, help="Frame start")
 parser.add_argument("-e", "--end", type=int, default= bpy.context.scene.frame_end,help="Frame end")
-parser.add_argument("-m", "--maps", nargs='+', help="Map define, array or all")
 
 args = parser.parse_args()
-quality = 32 * pow( 2, int( args.quality ) )
-maps = args.maps
+quality = 16 * pow( 2, int( args.quality ) )
 
 print( 'Render quality => ' + str( quality ) )
 
@@ -37,14 +35,12 @@ print(bpy.data.objects.keys())
 for compute_device_type in ('CUDA', 'OPENCL', 'NONE'):
     try:
         cprefs.compute_device_type = compute_device_type
-        print('Device found',compute_device_type)
         break
     except TypeError:
         pass
 #Enable all CPU and GPU devices
 for device in cprefs.devices:
     if not re.match('intel', device.name, re.I):
-        print('Activating',device)
         device.use = True
     else:
         device.use = False
@@ -59,10 +55,8 @@ start = args.start
 end = args.end
 scene.frame_set( start )
 output_dir = bpy.path.abspath("//") + 'exports' +'_' + str( round( time.time() ) ) + '/'
-print( 'Exporting to ' + output_dir )
-if not os.path.exists(output_dir):
-    os.makedirs(output_dir)
-print( start )
+
+
 #########################################
 # Init
 #########################################
@@ -85,7 +79,7 @@ bpy.context.scene.view_layers['View Layer'].cycles.use_denoising = True
 bpy.context.scene.cycles.samples = quality
 bpy.context.scene.render.tile_x = 256
 bpy.context.scene.render.tile_y = 256
-bpy.context.scene.render.bake.margin = 4
+bpy.context.scene.render.bake.margin = 8
 
 def appendImageToMaterial( obj, image ):
     bpy.ops.object.select_all(action='DESELECT')
@@ -283,8 +277,9 @@ def bake_geos():
             bpy.ops.object.select_all(action='DESELECT')
             bakeDir = output_dir + collection.name + '_shadow/'
             os.makedirs( bakeDir )
-            bpy.ops.image.new(name=collection.name, width=512, height=512)
+            bpy.ops.image.new(name=collection.name, width=1024, height=1024)
             image = bpy.data.images[collection.name]
+            bpy.context.scene.render.bake.use_clear = False
             for mat in bpy.data.materials:
                 if "Cap" in mat.name:
                     mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (1, 1, 1, 1)
@@ -295,28 +290,93 @@ def bake_geos():
                 node.location = (100,100)
                 node.select = True
                 nodes.active = node
-            for frame in range(1,end): # <-------- WHYYYY
+            
+            for frame in range(end):
                 scene.frame_set( frame )
+                
                 for obj in collection.all_objects:
-                    bpy.context.view_layer.update()
+                    bpy.ops.object.select_all(action='DESELECT')
                     if obj.type == 'MESH':
                         obj.select_set( True )
                         bpy.context.view_layer.objects.active = obj
-                        bpy.ops.object.bake(type=bpy.context.scene.cycles.bake_type)
-                image.filepath_raw = bakeDir + collection.name + '_shadow_' + str( frame ) + '.png'
+                        bpy. ops.object.bake(type=bpy.context.scene.cycles.bake_type)
+                    image.filepath_raw = bakeDir + collection.name + '_shadow_' + str( frame ) + '.png'
+                    image.file_format = 'PNG'
+                    image.save()
+            for mat in bpy.data.materials:
+                if "Cap" in mat.name:
+                    mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = ( 0.016, 0.016, 0.016, 1)
+
+def bake_mapid():
+    setRenderer( 'diffuse' )
+    for collection in bpy.data.collections:
+        if 'Letter_group' in collection.name:
+            bpy.ops.object.select_all(action='DESELECT')
+            bakeDir = output_dir
+            bpy.ops.image.new(name=collection.name, width=1024, height=1024)
+            image = bpy.data.images[collection.name]
+            bpy.context.scene.render.bake.use_clear = False
+
+            for mat in bpy.data.materials:
+                if "Cap" in mat.name:
+                    mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (1, 0, 0, 1)
+                if "Letter" in mat.name:
+                    mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (0, 1, 0, 1)
+                if "Inner" in mat.name:
+                    mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (0, 0, 1, 1)
+                mat.use_nodes = True
+                nodes = mat.node_tree.nodes
+                node = nodes.new('ShaderNodeTexImage')
+                node.image = image
+                node.location = (100,100)
+                node.select = True
+                nodes.active = node
+            
+            
+            for obj in collection.all_objects:
+                bpy.ops.object.select_all(action='DESELECT')
+                if obj.type == 'MESH':
+                    obj.select_set( True )
+                    bpy.context.view_layer.objects.active = obj
+                    bpy. ops.object.bake(type=bpy.context.scene.cycles.bake_type)
+                image.filepath_raw = bakeDir + collection.name + '_mapid.png'
                 image.file_format = 'PNG'
                 image.save()
             for mat in bpy.data.materials:
                 if "Cap" in mat.name:
                     mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = ( 0.016, 0.016, 0.016, 1)
+                if "Letter" in mat.name:
+                    mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (1, 1, 1, 1)
+                if "Inner" in mat.name:
+                    mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (1, 1, 1, 1)
 
+yes = {'yes','y', 'ye'}
+no = {'no','n',''}
+bake_maps = []
 
-if "roughness" in maps or "all" in maps: bake_map('roughness')
-if "normal" in maps or "all" in maps: bake_map('normal')
-if "diffuse" in maps or "all" in maps: bake_map('diffuse')
-if "plane" in maps or "all" in maps: bake_plane()
-if "geos" in maps or "all" in maps: bake_geos()
-if "emissive" in maps or "all" in maps: bake_emissive()
+if input('Bake all maps? [y/N]').lower() in yes: bake_maps.append('all')
+else :
+    if input('Bake Roughness? [y/N]').lower() in yes: bake_maps.append('roughness')
+    if input('Bake Normal? [y/N]').lower() in yes: bake_maps.append('normal')
+    if input('Bake Diffuse? [y/N]').lower() in yes: bake_maps.append('diffuse')
+    if input('Bake geos mat ids? [y/N]').lower() in yes: bake_maps.append('mapid')
+    if input('Bake Plane shadow? [y/N]').lower() in yes: bake_maps.append('plane')
+    if input('Bake Geos shadow? [y/N]').lower() in yes: bake_maps.append('geos')
+    if input('Bake Geos emissive? [y/N]').lower() in yes: bake_maps.append('emissive')
+
+if len(bake_maps) == 0 : 
+    print('No maps selected to bake')
+else:
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    print( 'Exporting to ' + output_dir )
+    if "roughness" in bake_maps or "all" in bake_maps: bake_map('roughness')
+    if "normal" in bake_maps or "all" in bake_maps: bake_map('normal')
+    if "diffuse" in bake_maps or "all" in bake_maps: bake_map('diffuse')
+    if "mapid" in bake_maps or "all" in bake_maps: bake_mapid()
+    if "plane" in bake_maps or "all" in bake_maps: bake_plane()
+    if "geos" in bake_maps or "all" in bake_maps: bake_geos()
+    if "emissive" in bake_maps or "all" in bake_maps: bake_emissive()
 
 # bpy.ops.wm.save_as_mainfile(filepath=output_dir+'demo.blend')
 
