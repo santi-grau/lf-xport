@@ -62,7 +62,7 @@ output_dir = bpy.path.abspath("//") + 'exports' +'_' + str( round( time.time() )
 print( 'Exporting to ' + output_dir )
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
-
+print( start )
 #########################################
 # Init
 #########################################
@@ -138,13 +138,14 @@ def setRenderer( mode ):
 #########################################
 
 def bake_map( mapId ):
-    bpy.ops.object.select_all(action='DESELECT')
+    
     setRenderer( mapId )
     for collection in bpy.data.collections:
+        bpy.ops.object.select_all(action='DESELECT')
         if 'Letter_group' in collection.name:
             bpy.ops.image.new(name=collection.name+'_' + mapId, width=1024, height=1024)
             image = bpy.data.images[collection.name+'_' + mapId ]
-
+            
             for mat in bpy.data.materials:
                 mat.use_nodes = True
                 nodes = mat.node_tree.nodes
@@ -156,6 +157,7 @@ def bake_map( mapId ):
             
             for obj in collection.all_objects:      
                 if obj.type == 'MESH':
+                    print( obj.name )
                     obj.select_set( True )
                     bpy.context.view_layer.objects.active = obj
 
