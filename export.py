@@ -19,10 +19,10 @@ parser = ArgumentParserForBlender()
 parser.add_argument("-q", "--quality", type=int, default=3, help="Quality render 32 * 2^q")
 parser.add_argument("-s", "--start", type=int, default=bpy.context.scene.frame_start, help="Frame start")
 parser.add_argument("-e", "--end", type=int, default= bpy.context.scene.frame_end,help="Frame end")
+parser.add_argument("-rs", "--rangeSkip", type=int, default=1,help="Skip frames")
 
 args = parser.parse_args()
 quality = 16 * pow( 2, int( args.quality ) )
-# quality = 4
 
 print( 'Render quality => ' + str( quality ) )
 
@@ -50,8 +50,6 @@ for device in cprefs.devices:
 #########################################
 # Set vars
 #########################################
-
-
 start = args.start
 end = args.end
 scene.frame_set( start )
@@ -180,9 +178,10 @@ def bake_plane():
     bpy.ops.image.new(name='Plane_shadow', width=1024, height=1024)
     image = bpy.data.images['Plane_shadow']
     appendImageToMaterial( plane, image )
+    bpy.context.active_object.data.uv_layers.active = bpy.context.active_object.data.uv_layers[0]
     plane.select_set( True )
     bpy.context.view_layer.objects.active = plane
-    for frame in range(end):
+    for frame in range(0,end,args.rangeSkip):
         scene.frame_set( frame )
         bpy.ops.object.bake(type=bpy.context.scene.cycles.bake_type)
         image.filepath_raw = bakeDir + 'plane_shadow_' + str( frame ) + '.png'
@@ -196,7 +195,9 @@ def bake_plane():
 
 def bake_emissive():
     setRenderer( 'emission' )
-    quality = 16 * pow( 2, int( args.quality - 1 ) )
+    bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[1].default_value = 0
+    
+    bpy.context.scene.cycles.samples = 16 * pow( 2, int( args.quality - 1 ) )
     emiColors = [ (1, 0, 0, 1), (0, 1, 0, 1), (0, 0, 1, 1) ]
     emiColors2 = [ (0.05, 0, 0, 1), (0, 0.05, 0, 1), (0, 0, 0.05, 1) ]
     colIndex = 0
@@ -244,8 +245,9 @@ def bake_emissive():
             appendImageToMaterial( plane, image )
             plane.select_set( True )
             bpy.context.view_layer.objects.active = plane
-            bpy.context.object.data.active_index = 1
-            for frame in range(end):
+            bpy.context.active_object.data.uv_layers.active = bpy.context.active_object.data.uv_layers[len(bpy.context.active_object.data.uv_layers)-1]
+            
+            for frame in range(0,end,args.rangeSkip):
                 scene.frame_set( frame )
                 bpy.ops.object.bake(type=bpy.context.scene.cycles.bake_type)
                 image.filepath_raw = bakeDir + collection.name + '_emission_' + str( frame ) + '.png'
@@ -269,9 +271,10 @@ def bake_emissive():
                             for i in range(0,materialnum):
                                 if obj.data.materials[i] == om:
                                     obj.data.materials[i] = pmi
-            bpy.context.object.data.active_index = 0
+            bpy.context.active_object.data.uv_layers.active = bpy.context.active_object.data.uv_layers[0]
         colIndex += 1
-    quality = 16 * pow( 2, int( args.quality ) )
+    bpy.context.scene.cycles.samples = quality
+    bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[1].default_value = 0.5
                     
 
 #########################################
@@ -299,7 +302,7 @@ def bake_geos():
                 node.select = True
                 nodes.active = node
             
-            for frame in range(end):
+            for frame in range(0,end,args.rangeSkip):
                 scene.frame_set( frame )
                 
                 for obj in collection.all_objects:
@@ -364,9 +367,9 @@ bake_maps = []
 
 if input('Bake all maps? [y/N]').lower() in yes: bake_maps.append('all')
 else :
-    if input('Bake Roughness? [y/N]').lower() in yes: bake_maps.append('roughness')
-    if input('Bake Normal? [y/N]').lower() in yes: bake_maps.append('normal')
-    if input('Bake Diffuse? [y/N]').lower() in yes: bake_maps.append('diffuse')
+    # if input('Bake Roughness? [y/N]').lower() in yes: bake_maps.append('roughness')
+    # if input('Bake Normal? [y/N]').lower() in yes: bake_maps.append('normal')
+    # if input('Bake Diffuse? [y/N]').lower() in yes: bake_maps.append('diffuse')
     if input('Bake geos mat ids? [y/N]').lower() in yes: bake_maps.append('mapid')
     if input('Bake Plane shadow? [y/N]').lower() in yes: bake_maps.append('plane')
     if input('Bake Geos shadow? [y/N]').lower() in yes: bake_maps.append('geos')
@@ -378,9 +381,9 @@ else:
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     print( 'Exporting to ' + output_dir )
-    if "roughness" in bake_maps or "all" in bake_maps: bake_map('roughness')
-    if "normal" in bake_maps or "all" in bake_maps: bake_map('normal')
-    if "diffuse" in bake_maps or "all" in bake_maps: bake_map('diffuse')
+    # if "roughness" in bake_maps or "all" in bake_maps: bake_map('roughness')
+    # if "normal" in bake_maps or "all" in bake_maps: bake_map('normal')
+    # if "diffuse" in bake_maps or "all" in bake_maps: bake_map('diffuse')
     if "mapid" in bake_maps or "all" in bake_maps: bake_mapid()
     if "plane" in bake_maps or "all" in bake_maps: bake_plane()
     if "geos" in bake_maps or "all" in bake_maps: bake_geos()
