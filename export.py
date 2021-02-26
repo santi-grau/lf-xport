@@ -21,8 +21,8 @@ parser.add_argument("-s", "--start", type=int, default=bpy.context.scene.frame_s
 parser.add_argument("-e", "--end", type=int, default= bpy.context.scene.frame_end,help="Frame end")
 
 args = parser.parse_args()
-# quality = 16 * pow( 2, int( args.quality ) )
-quality = 4
+quality = 16 * pow( 2, int( args.quality ) )
+# quality = 4
 
 print( 'Render quality => ' + str( quality ) )
 
@@ -182,7 +182,7 @@ def bake_plane():
     appendImageToMaterial( plane, image )
     plane.select_set( True )
     bpy.context.view_layer.objects.active = plane
-    for frame in range(0,end,20):
+    for frame in range(end):
         scene.frame_set( frame )
         bpy.ops.object.bake(type=bpy.context.scene.cycles.bake_type)
         image.filepath_raw = bakeDir + 'plane_shadow_' + str( frame ) + '.png'
@@ -295,7 +295,7 @@ def bake_geos():
                 node.select = True
                 nodes.active = node
             
-            for frame in range(0,end,20):
+            for frame in range(end):
                 scene.frame_set( frame )
                 
                 for obj in collection.all_objects:
