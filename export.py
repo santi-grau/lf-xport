@@ -196,6 +196,7 @@ def bake_plane():
 
 def bake_emissive():
     setRenderer( 'emission' )
+    quality = 16 * pow( 2, int( args.quality - 1 ) )
     emiColors = [ (1, 0, 0, 1), (0, 1, 0, 1), (0, 0, 1, 1) ]
     emiColors2 = [ (0.05, 0, 0, 1), (0, 0.05, 0, 1), (0, 0, 0.05, 1) ]
     colIndex = 0
@@ -238,11 +239,12 @@ def bake_emissive():
             bpy.ops.object.select_all(action='DESELECT')
             matching = [s for s in meshArray if "Plane" in s ]
             plane = bpy.data.objects[ matching[ 0 ] ]
-            bpy.ops.image.new(name='Plane_emission_' + collection.name, width=1024, height=1024)
+            bpy.ops.image.new(name='Plane_emission_' + collection.name, width=512, height=512)
             image = bpy.data.images['Plane_emission_' + collection.name]
             appendImageToMaterial( plane, image )
             plane.select_set( True )
             bpy.context.view_layer.objects.active = plane
+            bpy.context.object.data.active_index = 1
             for frame in range(end):
                 scene.frame_set( frame )
                 bpy.ops.object.bake(type=bpy.context.scene.cycles.bake_type)
@@ -267,7 +269,9 @@ def bake_emissive():
                             for i in range(0,materialnum):
                                 if obj.data.materials[i] == om:
                                     obj.data.materials[i] = pmi
+            bpy.context.object.data.active_index = 0
         colIndex += 1
+    quality = 16 * pow( 2, int( args.quality ) )
                     
 
 #########################################
