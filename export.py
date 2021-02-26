@@ -21,7 +21,8 @@ parser.add_argument("-s", "--start", type=int, default=bpy.context.scene.frame_s
 parser.add_argument("-e", "--end", type=int, default= bpy.context.scene.frame_end,help="Frame end")
 
 args = parser.parse_args()
-quality = 16 * pow( 2, int( args.quality ) )
+# quality = 16 * pow( 2, int( args.quality ) )
+quality = 4
 
 print( 'Render quality => ' + str( quality ) )
 
@@ -74,12 +75,12 @@ for obj in bpy.context.scene.objects:
 #########################################
 bpy.context.scene.render.engine = 'CYCLES'
 bpy.context.scene.cycles.device = 'GPU'
-bpy.context.scene.cycles.use_denoising = True
-bpy.context.scene.view_layers['View Layer'].cycles.use_denoising = True
 bpy.context.scene.cycles.samples = quality
 bpy.context.scene.render.tile_x = 256
 bpy.context.scene.render.tile_y = 256
-bpy.context.scene.render.bake.margin = 8
+bpy.context.scene.cycles.use_denoising = True
+bpy.context.scene.view_layers['View Layer'].cycles.use_denoising = True
+bpy.context.scene.render.bake.margin = 16
 
 def appendImageToMaterial( obj, image ):
     bpy.ops.object.select_all(action='DESELECT')
@@ -126,6 +127,9 @@ def setRenderer( mode ):
         bpy.context.scene.render.bake.use_pass_transmission = False
         bpy.context.scene.render.bake.use_pass_ambient_occlusion = False
         bpy.context.scene.render.bake.use_pass_emit = False
+    
+    bpy.context.scene.cycles.use_denoising = True
+    bpy.context.scene.view_layers['View Layer'].cycles.use_denoising = True
         
 #########################################
 # Geos bake SINGLE MAPS
@@ -178,7 +182,7 @@ def bake_plane():
     appendImageToMaterial( plane, image )
     plane.select_set( True )
     bpy.context.view_layer.objects.active = plane
-    for frame in range(end):
+    for frame in range(0,end,20):
         scene.frame_set( frame )
         bpy.ops.object.bake(type=bpy.context.scene.cycles.bake_type)
         image.filepath_raw = bakeDir + 'plane_shadow_' + str( frame ) + '.png'
@@ -291,7 +295,7 @@ def bake_geos():
                 node.select = True
                 nodes.active = node
             
-            for frame in range(end):
+            for frame in range(0,end,20):
                 scene.frame_set( frame )
                 
                 for obj in collection.all_objects:
