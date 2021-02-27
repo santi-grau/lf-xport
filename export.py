@@ -288,7 +288,7 @@ def bake_geos():
             bpy.ops.object.select_all(action='DESELECT')
             bakeDir = output_dir + collection.name + '_shadow/'
             os.makedirs( bakeDir )
-            bpy.ops.image.new(name=collection.name, width=1024, height=1024)
+            bpy.ops.image.new(name=collection.name, width=1024, height=1024, color=(1.0,1.0,1.0,1.0))
             image = bpy.data.images[collection.name]
             bpy.context.scene.render.bake.use_clear = False
             for mat in bpy.data.materials:
@@ -312,13 +312,14 @@ def bake_geos():
                         bpy.context.view_layer.objects.active = obj
                         bpy. ops.object.bake(type=bpy.context.scene.cycles.bake_type)
                     image.filepath_raw = bakeDir + collection.name + '_shadow_' + str( frame ) + '.png'
+                    
                     image.file_format = 'PNG'
                     image.save()
             for mat in bpy.data.materials:
                 if "Cap" in mat.name:
                     mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = ( 0.016, 0.016, 0.016, 1)
 
-def bake_mapid():
+def bake_mapid(): 
     setRenderer( 'diffuse' )
     for collection in bpy.data.collections:
         if 'Letter_group' in collection.name:
