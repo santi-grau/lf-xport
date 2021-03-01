@@ -189,6 +189,43 @@ def bake_plane():
         print( '------------------------------> Frame %s was saved to %s' % (str( frame ), image.filepath_raw ) )
         image.save()
 
+def bake_plane_tiled():
+    bakeDir = output_dir + 'plane_shadow_l/'
+    os.makedirs( bakeDir )
+
+    setRenderer( 'combined' )
+    
+    bpy.ops.object.select_all(action='DESELECT')
+    matching = [s for s in meshArray if "Plane" in s ]
+    plane = bpy.data.objects[ matching[ 0 ] ]
+    bpy.ops.image.new(name='Plane_shadow', width=1024, height=1024)
+    image = bpy.data.images['Plane_shadow']
+    appendImageToMaterial( plane, image )
+    
+    plane.select_set( True )
+    bpy.context.view_layer.objects.active = plane
+    
+    bpy.context.active_object.data.uv_layers.active = bpy.context.active_object.data.uv_layers[2]
+    for frame in range(0,end,args.rangeSkip):
+        scene.frame_set( frame )
+        bpy.ops.object.bake(type=bpy.context.scene.cycles.bake_type)
+        image.filepath_raw = bakeDir + 'plane_shadow_' + str( frame ) + '.png'
+        image.file_format = 'PNG'
+        print( '------------------------------> Frame %s was saved to %s' % (str( frame ), image.filepath_raw ) )
+        image.save()
+
+    bakeDir = output_dir + 'plane_shadow_r/'
+    os.makedirs( bakeDir )
+    
+    bpy.context.active_object.data.uv_layers.active = bpy.context.active_object.data.uv_layers[3]
+    for frame in range(0,end,args.rangeSkip):
+        scene.frame_set( frame )
+        bpy.ops.object.bake(type=bpy.context.scene.cycles.bake_type)
+        image.filepath_raw = bakeDir + 'plane_shadow_' + str( frame ) + '.png'
+        image.file_format = 'PNG'
+        print( '------------------------------> Frame %s was saved to %s' % (str( frame ), image.filepath_raw ) )
+        image.save()
+
 #########################################
 # Plane bake emissive
 #########################################
@@ -234,7 +271,7 @@ def bake_emissive():
                     objindex += 1
             # Colors swapped, do bake
 
-            bpy.ops.object.select_all(action='DESELECT')
+            
             bakeDir = output_dir + collection.name + '_emission/'
             os.makedirs( bakeDir )
             bpy.ops.object.select_all(action='DESELECT')
@@ -245,7 +282,7 @@ def bake_emissive():
             appendImageToMaterial( plane, image )
             plane.select_set( True )
             bpy.context.view_layer.objects.active = plane
-            bpy.context.active_object.data.uv_layers.active = bpy.context.active_object.data.uv_layers[len(bpy.context.active_object.data.uv_layers)-1]
+            bpy.context.active_object.data.uv_layers.active = bpy.context.active_object.data.uv_layers[1]
             
             for frame in range(0,end,args.rangeSkip):
                 scene.frame_set( frame )
@@ -375,6 +412,9 @@ else :
     if input('Bake Plane shadow? [y/N]').lower() in yes: bake_maps.append('plane')
     if input('Bake Geos shadow? [y/N]').lower() in yes: bake_maps.append('geos')
     if input('Bake Geos emissive? [y/N]').lower() in yes: bake_maps.append('emissive')
+    if input('Bake Plane Tiled? [y/N]').lower() in yes: bake_maps.append('bakeTiled')
+
+    
 
 if len(bake_maps) == 0 : 
     print('No maps selected to bake')
@@ -389,6 +429,7 @@ else:
     if "plane" in bake_maps or "all" in bake_maps: bake_plane()
     if "geos" in bake_maps or "all" in bake_maps: bake_geos()
     if "emissive" in bake_maps or "all" in bake_maps: bake_emissive()
+    if "bakeTiled" in bake_maps or "all" in bake_maps: bake_plane_tiled()
 
 # bpy.ops.wm.save_as_mainfile(filepath=output_dir+'demo.blend')
 
