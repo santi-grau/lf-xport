@@ -274,7 +274,7 @@ def bake_emissive():
             
             bakeDir = output_dir + collection.name + '_emission/'
             os.makedirs( bakeDir )
-            bpy.ops.object.select_all(action='DESELECT')
+            
             matching = [s for s in meshArray if "Plane" in s ]
             plane = bpy.data.objects[ matching[ 0 ] ]
             bpy.ops.image.new(name='Plane_emission_' + collection.name, width=512, height=512)
