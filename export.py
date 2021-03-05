@@ -234,7 +234,7 @@ def bake_emissive():
     setRenderer( 'emission' )
     bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[1].default_value = 0
     
-    bpy.context.scene.cycles.samples = 16 * pow( 2, int( args.quality - 1 ) )
+    bpy.context.scene.cycles.samples = 16 * pow( 2, int( args.quality ) )
     emiColors = [ (1, 0, 0, 1), (0, 1, 0, 1), (0, 0, 1, 1) ]
     emiColors2 = [ (0.05, 0, 0, 1), (0, 0.05, 0, 1), (0, 0, 0.05, 1) ]
     colIndex = 0
@@ -277,7 +277,7 @@ def bake_emissive():
             
             matching = [s for s in meshArray if "Plane" in s ]
             plane = bpy.data.objects[ matching[ 0 ] ]
-            bpy.ops.image.new(name='Plane_emission_' + collection.name, width=512, height=512)
+            bpy.ops.image.new(name='Plane_emission_' + collection.name, width=256, height=256)
             image = bpy.data.images['Plane_emission_' + collection.name]
             appendImageToMaterial( plane, image )
             plane.select_set( True )
