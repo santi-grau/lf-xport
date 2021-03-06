@@ -118,7 +118,7 @@ def setRenderer( mode ):
         bpy.context.scene.cycles.bake_type = 'NORMAL'
     if mode == 'emission' :
         bpy.context.scene.cycles.bake_type = 'COMBINED'
-        bpy.context.scene.render.bake.use_pass_direct = True
+        bpy.context.scene.render.bake.use_pass_direct = False
         bpy.context.scene.render.bake.use_pass_indirect = True
         bpy.context.scene.render.bake.use_pass_diffuse = True
         bpy.context.scene.render.bake.use_pass_glossy = False
@@ -232,10 +232,8 @@ def bake_plane_tiled():
 
 def bake_emissive():
     setRenderer( 'emission' )
-    # bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[1].default_value = 0
     
-    bpy.context.scene.cycles.samples = 16 * pow( 2, int( args.quality ) )
-    emiColors = [ (1, 0, 0, 1), (0, 1, 0, 1), (0, 0, 1, 1) ]
+    emiColors = [ (0.3, 0, 0, 1), (0, 0.3, 0, 1), (0, 0, 0.3, 1) ]
     emiColors2 = [ (0.05, 0, 0, 1), (0, 0.05, 0, 1), (0, 0, 0.05, 1) ]
     colIndex = 0
     for collection in bpy.data.collections:
@@ -277,7 +275,7 @@ def bake_emissive():
             
             matching = [s for s in meshArray if "Plane" in s ]
             plane = bpy.data.objects[ matching[ 0 ] ]
-            bpy.ops.image.new(name='Plane_emission_' + collection.name, width=256, height=256)
+            bpy.ops.image.new(name='Plane_emission_' + collection.name, width=1024, height=1024)
             image = bpy.data.images['Plane_emission_' + collection.name]
             appendImageToMaterial( plane, image )
             plane.select_set( True )
@@ -310,8 +308,6 @@ def bake_emissive():
                                     obj.data.materials[i] = pmi
             bpy.context.active_object.data.uv_layers.active = bpy.context.active_object.data.uv_layers[0]
         colIndex += 1
-    bpy.context.scene.cycles.samples = quality
-    # bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[1].default_value = 0.5
                     
 
 #########################################
