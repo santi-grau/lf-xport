@@ -280,7 +280,7 @@ def bake_emissive():
             appendImageToMaterial( plane, image )
             plane.select_set( True )
             bpy.context.view_layer.objects.active = plane
-            bpy.context.active_object.data.uv_layers.active = bpy.context.active_object.data.uv_layers[1]
+            bpy.context.active_object.data.uv_layers.active = bpy.context.active_object.data.uv_layers[0]
             
             for frame in range(0,end,args.rangeSkip):
                 scene.frame_set( frame )
