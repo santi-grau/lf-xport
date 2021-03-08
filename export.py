@@ -166,28 +166,6 @@ def bake_map( mapId ):
 #########################################
 # Plane bake
 #########################################
-def bake_plane():
-    bakeDir = output_dir + 'plane_shadow/'
-    os.makedirs( bakeDir )
-
-    setRenderer( 'combined' )
-    
-    bpy.ops.object.select_all(action='DESELECT')
-    matching = [s for s in meshArray if "Plane" in s ]
-    plane = bpy.data.objects[ matching[ 0 ] ]
-    bpy.ops.image.new(name='Plane_shadow', width=1024, height=1024)
-    image = bpy.data.images['Plane_shadow']
-    appendImageToMaterial( plane, image )
-    bpy.context.active_object.data.uv_layers.active = bpy.context.active_object.data.uv_layers[0]
-    plane.select_set( True )
-    bpy.context.view_layer.objects.active = plane
-    for frame in range(0,end,args.rangeSkip):
-        scene.frame_set( frame )
-        bpy.ops.object.bake(type=bpy.context.scene.cycles.bake_type)
-        image.filepath_raw = bakeDir + 'plane_shadow_' + str( frame ) + '.png'
-        image.file_format = 'PNG'
-        print( '------------------------------> Frame %s was saved to %s' % (str( frame ), image.filepath_raw ) )
-        image.save()
 
 def bake_plane_tiled():
     bakeDir = output_dir + 'plane_shadow_l/'
@@ -232,82 +210,52 @@ def bake_plane_tiled():
 
 def bake_emissive():
     setRenderer( 'emission' )
-    
-    emiColors = [ (0.3, 0, 0, 1), (0, 0.3, 0, 1), (0, 0, 0.3, 1) ]
-    emiColors2 = [ (0.05, 0, 0, 1), (0, 0.05, 0, 1), (0, 0, 0.05, 1) ]
-    colIndex = 0
+
+    selectedMeshes = []
+
+    # bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[1].default_value = 1
     for collection in bpy.data.collections:
-        for c in bpy.data.collections:
-            c.hide_render = True
-        collection.hide_render = False
         if 'Letter_group' in collection.name:
-            objindex = 0
-            for obj in collection.all_objects:
-                if obj.type == 'MESH':
-                    for mat in obj.data.materials:
-                        if "Letter" in mat.name:
-                            om = mat
-                            pm = mat
-                            nm = mat.copy()
-                            nm.name = om.name + '_emi_' + str( objindex )
-                            nm.node_tree.nodes["Principled BSDF"].inputs[0].default_value = emiColors[ objindex ]
-                            materialnum = len( obj.data.materials )
-                            for i in range(0,materialnum):
-                                if obj.data.materials[i] == om:
-                                    obj.data.materials[i] = nm
-                        if "Inner" in mat.name:
-                            om = mat
-                            pmi = mat
-                            nm = mat.copy()
-                            nm.name = om.name + '_emi_' + str( objindex )
-                            nm.node_tree.nodes["Principled BSDF"].inputs[0].default_value = emiColors[ objindex ]
-                            nm.node_tree.nodes["Principled BSDF"].inputs[17].default_value = emiColors2[ objindex ]
-                            materialnum = len( obj.data.materials )
-                            for i in range(0,materialnum):
-                                if obj.data.materials[i] == om:
-                                    obj.data.materials[i] = nm
-                    objindex += 1
-            # Colors swapped, do bake
-
+            for o in collection.all_objects:
+                if o.type == 'MESH':
+                    selectedMeshes.append( o )
+    for mesh in selectedMeshes:
+        for m in selectedMeshes:
+            m.hide_render = True
+        mesh.hide_render = False
+        for mat in mesh.data.materials:
+            if "Letter" in mat.name: 
+                mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (0.5, 0.5, 0.5, 1)
+            if "Inner" in mat.name: 
+                mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (0.5, 0.5, 0.5, 1)
+                mat.node_tree.nodes["Principled BSDF"].inputs[17].default_value = (0.05, 0.05, 0.05, 1)
+            if "Cap" in mat.name: 
+                mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (0.5, 0.5, 0.5, 1)
             
-            bakeDir = output_dir + collection.name + '_emission/'
-            os.makedirs( bakeDir )
-            
-            matching = [s for s in meshArray if "Plane" in s ]
-            plane = bpy.data.objects[ matching[ 0 ] ]
-            bpy.ops.image.new(name='Plane_emission_' + collection.name, width=1024, height=1024)
-            image = bpy.data.images['Plane_emission_' + collection.name]
-            appendImageToMaterial( plane, image )
-            plane.select_set( True )
-            bpy.context.view_layer.objects.active = plane
-            bpy.context.active_object.data.uv_layers.active = bpy.context.active_object.data.uv_layers[0]
-            
-            for frame in range(0,end,args.rangeSkip):
-                scene.frame_set( frame )
-                bpy.ops.object.bake(type=bpy.context.scene.cycles.bake_type)
-                image.filepath_raw = bakeDir + collection.name + '_emission_' + str( frame ) + '.png'
-                image.file_format = 'PNG'
-                print( '------------------------------> Frame %s for ' % ( str( frame ) ) + collection.name  + ' emission was saved to %s' % ( image.filepath_raw ) )
-                image.save()
-
-            # Restore color
-            for obj in collection.all_objects:
-                if obj.type == 'MESH':
-                    for mat in obj.data.materials:
-                        if "Letter" in mat.name:
-                            om = mat
-                            materialnum = len( obj.data.materials )
-                            for i in range(0,materialnum):
-                                if obj.data.materials[i] == om:
-                                    obj.data.materials[i] = pm
-                        if "Inner" in mat.name:
-                            om = mat
-                            materialnum = len( obj.data.materials )
-                            for i in range(0,materialnum):
-                                if obj.data.materials[i] == om:
-                                    obj.data.materials[i] = pmi
-            bpy.context.active_object.data.uv_layers.active = bpy.context.active_object.data.uv_layers[0]
-        colIndex += 1
+        bakeDir = output_dir + mesh.name + '_emission/'
+        os.makedirs( bakeDir )
+        
+        matching = [s for s in meshArray if "Plane" in s ]
+        plane = bpy.data.objects[ matching[ 0 ] ]
+        bpy.ops.image.new(name='Plane_emission_' + mesh.name, width=512, height=512)
+        image = bpy.data.images['Plane_emission_' + mesh.name]
+        appendImageToMaterial( plane, image )
+        bpy.ops.object.select_all(action='DESELECT')
+        plane.select_set( True )
+        bpy.context.view_layer.objects.active = plane
+        bpy.context.active_object.data.uv_layers.active = bpy.context.active_object.data.uv_layers[1]
+                    
+        for frame in range(0,end,args.rangeSkip):
+            scene.frame_set( frame )
+            bpy.ops.object.bake(type=bpy.context.scene.cycles.bake_type)
+            image.filepath_raw = bakeDir + mesh.name + '_emission_' + str( frame ) + '.png'
+            image.file_format = 'PNG'
+            print( '------------------------------> Frame %s for ' % ( str( frame ) ) + mesh.name  + ' emission was saved to %s' % ( image.filepath_raw ) )
+            image.save()
+                    
+        bpy.context.active_object.data.uv_layers.active = bpy.context.active_object.data.uv_layers[0]
+    
+    # bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[1].default_value = 0.5
                     
 
 #########################################
@@ -401,16 +349,10 @@ bake_maps = []
 
 if input('Bake all maps? [y/N]').lower() in yes: bake_maps.append('all')
 else :
-    # if input('Bake Roughness? [y/N]').lower() in yes: bake_maps.append('roughness')
-    # if input('Bake Normal? [y/N]').lower() in yes: bake_maps.append('normal')
-    # if input('Bake Diffuse? [y/N]').lower() in yes: bake_maps.append('diffuse')
     if input('Bake geos mat ids? [y/N]').lower() in yes: bake_maps.append('mapid')
-    if input('Bake Plane shadow? [y/N]').lower() in yes: bake_maps.append('plane')
     if input('Bake Geos shadow? [y/N]').lower() in yes: bake_maps.append('geos')
-    if input('Bake Geos emissive? [y/N]').lower() in yes: bake_maps.append('emissive')
     if input('Bake Plane Tiled? [y/N]').lower() in yes: bake_maps.append('bakeTiled')
-
-    
+    if input('Bake Geos emissive? [y/N]').lower() in yes: bake_maps.append('emissive')
 
 if len(bake_maps) == 0 : 
     print('No maps selected to bake')
@@ -418,14 +360,10 @@ else:
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     print( 'Exporting to ' + output_dir )
-    # if "roughness" in bake_maps or "all" in bake_maps: bake_map('roughness')
-    # if "normal" in bake_maps or "all" in bake_maps: bake_map('normal')
-    # if "diffuse" in bake_maps or "all" in bake_maps: bake_map('diffuse')
     if "mapid" in bake_maps or "all" in bake_maps: bake_mapid()
-    if "plane" in bake_maps or "all" in bake_maps: bake_plane()
     if "geos" in bake_maps or "all" in bake_maps: bake_geos()
-    if "emissive" in bake_maps or "all" in bake_maps: bake_emissive()
     if "bakeTiled" in bake_maps or "all" in bake_maps: bake_plane_tiled()
+    if "emissive" in bake_maps or "all" in bake_maps: bake_emissive()
 
 # bpy.ops.wm.save_as_mainfile(filepath=output_dir+'demo.blend')
 
