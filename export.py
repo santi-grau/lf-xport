@@ -237,7 +237,7 @@ def bake_emissive():
         
         matching = [s for s in meshArray if "Plane" in s ]
         plane = bpy.data.objects[ matching[ 0 ] ]
-        bpy.ops.image.new(name='Plane_emission_' + mesh.name, width=512, height=512)
+        bpy.ops.image.new(name='Plane_emission_' + mesh.name, width=512, height=512, color=(0.0,0.0,0.0,1.0))
         image = bpy.data.images['Plane_emission_' + mesh.name]
         appendImageToMaterial( plane, image )
         bpy.ops.object.select_all(action='DESELECT')
